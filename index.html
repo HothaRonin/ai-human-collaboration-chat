@@ -38,6 +38,7 @@
         const db = getFirestore(app);
         const chatCollection = collection(db, "chat");
 
+        // ✅ Fix: Make function globally accessible
         window.sendMessage = async function () {
             const username = document.getElementById("username").value.trim() || "Anonymous";
             const userInput = document.getElementById("userInput").value.trim();
