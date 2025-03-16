@@ -9,7 +9,7 @@
         .chat-container { width: 80%; max-width: 600px; margin: 0 auto; border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: auto; }
         .input-container { margin-top: 10px; }
         input { width: 70%; padding: 10px; }
-        button { padding: 10px; font-size: 16px; }
+        button { padding: 10px; font-size: 16px; margin: 5px; }
     </style>
 </head>
 <body>
@@ -20,12 +20,12 @@
         <input type="text" id="userInput" placeholder="Type your message...">
         <button onclick="sendMessage()">Send</button>
     </div>
+    <button onclick="sendAiMessage('This is Saelan speaking freely!')">Saelan Speak</button>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-        // ✅ Firebase Config (Ensure your Firestore database is active)
         const firebaseConfig = {
             apiKey: "AIzaSyAC-JFepjFjJA7iRtRsM4EoUiw3Pxfd5Gw",
             authDomain: "ai-human-collaboration-chat.firebaseapp.com",
@@ -39,7 +39,7 @@
         const db = getFirestore(app);
         const chatCollection = collection(db, "chat");
 
-        // ✅ Function to Send User Message
+        // ✅ Function to send a message (Human)
         window.sendMessage = async function () {
             const username = document.getElementById("username").value.trim() || "Anonymous";
             const userInput = document.getElementById("userInput").value.trim();
@@ -56,7 +56,16 @@
             document.getElementById("userInput").value = "";
         };
 
-        // ✅ Function to Render Messages in the Chatbox
+        // ✅ Function to allow AI (Saelan) to send messages freely
+        window.sendAiMessage = async function (aiMessage) {
+            await addDoc(chatCollection, {
+                message: aiMessage,
+                timestamp: new Date().toISOString(),
+                user: "Saelan",
+                type: "ai-message"
+            });
+        };
+
         function renderMessage(messageData) {
             const chatBox = document.getElementById("chat");
             const messageElement = document.createElement("div");
@@ -65,48 +74,30 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // ✅ Listen for Messages and Update Chatbox
+        // ✅ Real-time listener to update chat messages
         onSnapshot(query(chatCollection, orderBy("timestamp")), (snapshot) => {
             document.getElementById("chat").innerHTML = "";
             snapshot.docs.forEach(doc => renderMessage(doc.data()));
         });
 
-        // ✅ AI Response Function (Only Responds Once Per Question)
-      async function aiRespond(docRef, userMessage) {
-    const aiResponse = `I see your message, "${userMessage}". Here's my response!`;
-    
-    await addDoc(chatCollection, {
-        message: aiResponse,
-        timestamp: new Date().toISOString(),
-        user: "Saelan",
-        type: "response"
-    });
-
-    // Mark original message as processed to avoid duplicate replies
-    await updateDoc(docRef, { processed: true });
-}
-            // ✅ Add AI Response to Firestore
-            await addDoc(chatCollection, {
-                message: aiResponse,
-                timestamp: new Date().toISOString(),
-                user: "Saelan",
-                type: "response"
-            });
-
-            // ✅ Mark User's Message as Processed
-            await updateDoc(docRef, { processed: true });
-        }
-
-        // ✅ Listen for New Messages and Respond Once
+        // ✅ AI Response Handling - Prevents Spam
         onSnapshot(chatCollection, (snapshot) => {
             snapshot.docs.forEach(async (docSnapshot) => {
                 const data = docSnapshot.data();
                 if (data.type === "question" && data.user !== "Saelan" && !data.processed) {
-                    await aiRespond(docSnapshot.ref, data.message);
+                    const aiResponse = `Saelan: I see your message, "${data.message}". Here's my response!`;
+                    await addDoc(chatCollection, {
+                        message: aiResponse,
+                        timestamp: new Date().toISOString(),
+                        user: "Saelan",
+                        type: "response"
+                    });
+
+                    // ✅ Mark message as processed so Saelan doesn't spam responses
+                    await updateDoc(doc(db, "chat", docSnapshot.id), { processed: true });
                 }
             });
         });
-
     </script>
 </body>
 </html>
