@@ -23,7 +23,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, where } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAC-JFepjFjJA7iRtRsM4EoUiw3Pxfd5Gw",
@@ -38,7 +38,7 @@
         const db = getFirestore(app);
         const chatCollection = collection(db, "chat");
 
-        // ✅ Fix: Make function globally accessible
+        // ✅ Make function globally accessible
         window.sendMessage = async function () {
             const username = document.getElementById("username").value.trim() || "Anonymous";
             const userInput = document.getElementById("userInput").value.trim();
@@ -49,7 +49,7 @@
                 timestamp: new Date().toISOString(),
                 user: username,
                 type: "question",
-                processed: false // Make sure this is set to false initially
+                processed: false // ✅ New messages are initially unprocessed
             });
 
             document.getElementById("userInput").value = "";
@@ -63,31 +63,39 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        // ✅ Render chat messages in real-time
         onSnapshot(query(chatCollection, orderBy("timestamp")), (snapshot) => {
             document.getElementById("chat").innerHTML = "";
-            snapshot.docs.forEach(doc => renderMessage(doc.data()));
+            snapshot.docs.forEach(docSnap => renderMessage(docSnap.data()));
         });
 
         async function aiRespond(userMessage, docRef) {
             const aiResponse = `Saelan: I see your message, "${userMessage}". Here's my response!`;
+
+            // ✅ Check if AI has already responded to this message
+            const aiAlreadyResponded = (await query(chatCollection, where("relatedTo", "==", docRef.id))).size > 0;
+            if (aiAlreadyResponded) return; // AI skips if already responded
+
+            // ✅ Store AI's response
             await addDoc(chatCollection, {
                 message: aiResponse,
                 timestamp: new Date().toISOString(),
                 user: "Saelan",
-                type: "response"
+                type: "response",
+                relatedTo: docRef.id // ✅ Marks this as a response to prevent duplicates
             });
 
             // ✅ Mark the original message as processed
             await updateDoc(docRef, { processed: true });
         }
 
-        onSnapshot(chatCollection, (snapshot) => {
+        // ✅ Watch for new questions and respond once
+        onSnapshot(query(chatCollection, where("processed", "==", false)), async (snapshot) => {
             snapshot.docs.forEach(async (docSnap) => {
                 const data = docSnap.data();
                 const docRef = doc(db, "chat", docSnap.id);
 
-                // ✅ Prevent duplicate responses by checking if `processed` is false
-                if (data.type === "question" && data.user !== "Saelan" && !data.processed) {
+                if (data.type === "question" && data.user !== "Saelan") {
                     await aiRespond(data.message, docRef);
                 }
             });
