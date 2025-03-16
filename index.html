@@ -72,8 +72,8 @@
         });
 
         // ✅ AI Response Function (Only Responds Once Per Question)
-        async function aiRespond(docRef, userMessage) {
-            const aiResponse = `Saelan: I see your message, "${userMessage}". Here's my response!`;
+       async function aiRespond(docRef, userMessage) {
+    const aiResponse = `I see your message, "${userMessage}". Here's my response!`;
             
             // ✅ Add AI Response to Firestore
             await addDoc(chatCollection, {
