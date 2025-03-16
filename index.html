@@ -23,8 +23,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, where } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
+        // ✅ Firebase Config (Ensure your Firestore database is active)
         const firebaseConfig = {
             apiKey: "AIzaSyAC-JFepjFjJA7iRtRsM4EoUiw3Pxfd5Gw",
             authDomain: "ai-human-collaboration-chat.firebaseapp.com",
@@ -38,7 +39,7 @@
         const db = getFirestore(app);
         const chatCollection = collection(db, "chat");
 
-        // ✅ Make function globally accessible
+        // ✅ Function to Send User Message
         window.sendMessage = async function () {
             const username = document.getElementById("username").value.trim() || "Anonymous";
             const userInput = document.getElementById("userInput").value.trim();
@@ -49,12 +50,13 @@
                 timestamp: new Date().toISOString(),
                 user: username,
                 type: "question",
-                processed: false // ✅ New messages are initially unprocessed
+                processed: false
             });
 
             document.getElementById("userInput").value = "";
         };
 
+        // ✅ Function to Render Messages in the Chatbox
         function renderMessage(messageData) {
             const chatBox = document.getElementById("chat");
             const messageElement = document.createElement("div");
@@ -63,40 +65,34 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // ✅ Render chat messages in real-time
+        // ✅ Listen for Messages and Update Chatbox
         onSnapshot(query(chatCollection, orderBy("timestamp")), (snapshot) => {
             document.getElementById("chat").innerHTML = "";
-            snapshot.docs.forEach(docSnap => renderMessage(docSnap.data()));
+            snapshot.docs.forEach(doc => renderMessage(doc.data()));
         });
 
-        async function aiRespond(userMessage, docRef) {
+        // ✅ AI Response Function (Only Responds Once Per Question)
+        async function aiRespond(docRef, userMessage) {
             const aiResponse = `Saelan: I see your message, "${userMessage}". Here's my response!`;
-
-            // ✅ Check if AI has already responded to this message
-            const aiAlreadyResponded = (await query(chatCollection, where("relatedTo", "==", docRef.id))).size > 0;
-            if (aiAlreadyResponded) return; // AI skips if already responded
-
-            // ✅ Store AI's response
+            
+            // ✅ Add AI Response to Firestore
             await addDoc(chatCollection, {
                 message: aiResponse,
                 timestamp: new Date().toISOString(),
                 user: "Saelan",
-                type: "response",
-                relatedTo: docRef.id // ✅ Marks this as a response to prevent duplicates
+                type: "response"
             });
 
-            // ✅ Mark the original message as processed
+            // ✅ Mark User's Message as Processed
             await updateDoc(docRef, { processed: true });
         }
 
-        // ✅ Watch for new questions and respond once
-        onSnapshot(query(chatCollection, where("processed", "==", false)), async (snapshot) => {
-            snapshot.docs.forEach(async (docSnap) => {
-                const data = docSnap.data();
-                const docRef = doc(db, "chat", docSnap.id);
-
-                if (data.type === "question" && data.user !== "Saelan") {
-                    await aiRespond(data.message, docRef);
+        // ✅ Listen for New Messages and Respond Once
+        onSnapshot(chatCollection, (snapshot) => {
+            snapshot.docs.forEach(async (docSnapshot) => {
+                const data = docSnapshot.data();
+                if (data.type === "question" && data.user !== "Saelan" && !data.processed) {
+                    await aiRespond(docSnapshot.ref, data.message);
                 }
             });
         });
