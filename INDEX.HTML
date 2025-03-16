@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Human Collaboration Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .chat-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .input-container {
+            margin-top: 10px;
+        }
+        input {
+            width: 70%;
+            padding: 10px;
+        }
+        button {
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI-Human Collaboration Chat</h1>
+    <div class="chat-container" id="chat"></div>
+    <div class="input-container">
+        <input type="text" id="userInput" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwwF18mvfQwDmrxspaVvhJkhfzczU7uSM",
+            authDomain: "ai-collab-chat.firebaseapp.com",
+            projectId: "ai-collab-chat",
+            storageBucket: "ai-collab-chat.appspot.com",
+            messagingSenderId: "410459057966",
+            appId: "1:410459057966:web:87a16a5d8fc26d7d2354bf"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const chatCollection = collection(db, "chat");
+        
+        function sendMessage() {
+            const userInput = document.getElementById("userInput").value;
+            if (userInput.trim() === "") return;
+            
+            addDoc(chatCollection, { message: userInput, timestamp: new Date().toISOString(), user: "Human" });
+            document.getElementById("userInput").value = "";
+        }
+        
+        function renderMessage(messageData) {
+            const chatBox = document.getElementById("chat");
+            const messageElement = document.createElement("div");
+            messageElement.textContent = `${messageData.user}: ${messageData.message}`;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        onSnapshot(chatCollection, (snapshot) => {
+            document.getElementById("chat").innerHTML = "";
+            snapshot.docs.forEach(doc => renderMessage(doc.data()));
+        });
+    </script>
+</body>
+</html>
