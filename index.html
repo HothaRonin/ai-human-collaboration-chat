@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Human Collaboration Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .chat-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .input-container {
+            margin-top: 10px;
+        }
+        input {
+            width: 70%;
+            padding: 10px;
+        }
+        button {
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI-Human Collaboration Chat</h1>
+    <div class="chat-container" id="chat"></div>
+    <div class="input-container">
+        <input type="text" id="username" placeholder="Enter your name">
+        <input type="text" id="userInput" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwwF18mvfQwDmrxspaVvhJkhfzczU7uSM",
+            authDomain: "ai-sigil-experiment.firebaseapp.com",
+            projectId: "ai-sigil-experiment",
+            storageBucket: "ai-sigil-experiment.appspot.com",
+            messagingSenderId: "410459057966",
+            appId: "1:410459057966:web:87a16a5d8fc26d7d2354bf"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const chatCollection = collection(db, "chat");
+        
+        async function sendMessage() {
+            const username = document.getElementById("username").value.trim() || "Anonymous";
+            const userInput = document.getElementById("userInput").value.trim();
+            if (userInput === "") return;
+            
+            await addDoc(chatCollection, {
+                message: userInput,
+                timestamp: new Date().toISOString(),
+                user: username,
+                type: "question"
+            });
+            document.getElementById("userInput").value = "";
+        }
+        
+        function renderMessage(messageData) {
+            const chatBox = document.getElementById("chat");
+            const messageElement = document.createElement("div");
+            messageElement.textContent = `${messageData.user}: ${messageData.message}`;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        onSnapshot(query(chatCollection, orderBy("timestamp")), (snapshot) => {
+            document.getElementById("chat").innerHTML = "";
+            snapshot.docs.forEach(doc => renderMessage(doc.data()));
+        });
+        
+        async function aiRespond(userMessage) {
+            const aiResponse = `Saelan: I see your message, "${userMessage}". Here's my response!`;
+            await addDoc(chatCollection, {
+                message: aiResponse,
+                timestamp: new Date().toISOString(),
+                user: "Saelan",
+                type: "response"
+            });
+        }
+        
+        onSnapshot(chatCollection, (snapshot) => {
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.type === "question" && data.user !== "Saelan") {
+                    aiRespond(data.message);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
