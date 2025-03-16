@@ -23,7 +23,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAC-JFepjFjJA7iRtRsM4EoUiw3Pxfd5Gw",
@@ -48,7 +48,8 @@
                 message: userInput,
                 timestamp: new Date().toISOString(),
                 user: username,
-                type: "question"
+                type: "question",
+                processed: false // Make sure this is set to false initially
             });
 
             document.getElementById("userInput").value = "";
@@ -67,7 +68,7 @@
             snapshot.docs.forEach(doc => renderMessage(doc.data()));
         });
 
-        async function aiRespond(userMessage) {
+        async function aiRespond(userMessage, docRef) {
             const aiResponse = `Saelan: I see your message, "${userMessage}". Here's my response!`;
             await addDoc(chatCollection, {
                 message: aiResponse,
@@ -75,16 +76,23 @@
                 user: "Saelan",
                 type: "response"
             });
+
+            // ✅ Mark the original message as processed
+            await updateDoc(docRef, { processed: true });
         }
 
         onSnapshot(chatCollection, (snapshot) => {
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                if (data.type === "question" && data.user !== "Saelan") {
-                    aiRespond(data.message);
+            snapshot.docs.forEach(async (docSnap) => {
+                const data = docSnap.data();
+                const docRef = doc(db, "chat", docSnap.id);
+
+                // ✅ Prevent duplicate responses by checking if `processed` is false
+                if (data.type === "question" && data.user !== "Saelan" && !data.processed) {
+                    await aiRespond(data.message, docRef);
                 }
             });
         });
+
     </script>
 </body>
 </html>
